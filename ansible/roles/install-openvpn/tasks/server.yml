@@ -1,0 +1,163 @@
+---
+
+- name: Ensure /etc/openvpn/easy-rsa exists
+  ansible.builtin.file:
+    path: /etc/openvpn/easy-rsa
+    state: directory
+    mode: "0755"
+- name: Easyrsa init-pki
+  ansible.builtin.command:
+    cmd: "{{ openvpn_easyrsa_path }}/easyrsa init-pki"
+    chdir: /etc/openvpn/easy-rsa
+    creates: /etc/openvpn/easy-rsa/pki
+
+- name: Easyrsa build-ca
+  ansible.builtin.command:
+    cmd: "{{ openvpn_easyrsa_path }}/easyrsa build-ca nopass"
+    chdir: /etc/openvpn/easy-rsa
+    creates: /etc/openvpn/easy-rsa/pki/ca.crt
+  environment:
+    EASYRSA_BATCH: "yes"
+
+
+- name: Generate DH Parameters with a different size (2048 bits)
+  community.crypto.openssl_dhparam:
+    path: /etc/openvpn/easy-rsa/pki/dh.pem
+    size: 2048
+
+- name: Easyrsa build-server-full server nopass
+  ansible.builtin.command:
+    cmd: "{{ openvpn_easyrsa_path }}/easyrsa build-server-full server nopass"
+    chdir: /etc/openvpn/easy-rsa
+    creates: /etc/openvpn/easy-rsa/pki/issued/server.crt
+
+- name: Easyrsa build-client-full homepc nopass
+  ansible.builtin.command:
+    cmd: "{{ openvpn_easyrsa_path }}/easyrsa build-client-full homepc nopass"
+    chdir: /etc/openvpn/easy-rsa
+    creates: /etc/openvpn/easy-rsa/pki/issued/homepc.crt
+
+- name: Easyrsa build-client-full work nopass
+  ansible.builtin.command:
+    cmd: "{{ openvpn_easyrsa_path }}/easyrsa build-client-full work nopass"
+    chdir: /etc/openvpn/easy-rsa
+    creates: /etc/openvpn/easy-rsa/pki/issued/work.crt    
+
+- name: Easyrsa build-client-full jull nopass
+  ansible.builtin.command:
+    cmd: "{{ openvpn_easyrsa_path }}/easyrsa build-client-full jull nopass"
+    chdir: /etc/openvpn/easy-rsa
+    creates: /etc/openvpn/easy-rsa/pki/issued/jull.crt
+
+- name: Easyrsa build-client-full ipa nopass
+  ansible.builtin.command:
+    cmd: "{{ openvpn_easyrsa_path }}/easyrsa build-client-full ipa nopass"
+    chdir: /etc/openvpn/easy-rsa
+    creates: /etc/openvpn/easy-rsa/pki/issued/ipa.crt    
+
+- name: Easyrsa build-client-full book nopass
+  ansible.builtin.command:
+    cmd: "{{ openvpn_easyrsa_path }}/easyrsa build-client-full book nopass"
+    chdir: /etc/openvpn/easy-rsa
+    creates: /etc/openvpn/easy-rsa/pki/issued/book.crt    
+    
+- name: Easyrsa gen-crl
+  ansible.builtin.command:
+    cmd: "{{ openvpn_easyrsa_path }}/easyrsa gen-crl"
+    chdir: /etc/openvpn/easy-rsa
+    creates: /etc/openvpn/easy-rsa/pki/crl.pem
+
+- name: Openvpn --genkey --secret /etc/openvpn/easy-rsa/pki/ta.key
+  ansible.builtin.command:
+    cmd: openvpn --genkey --secret /etc/openvpn/easy-rsa/pki/ta.key
+    creates: /etc/openvpn/easy-rsa/pki/ta.key
+ 
+- name: Check keys folder exists
+  stat:
+    path: /etc/openvpn/server/keys/
+  register: stat_result
+
+- name: Create keys folder
+  ansible.builtin.file:
+    path: /etc/openvpn/server/keys/
+    state: directory
+    mode: 0700
+    owner: astorf
+    group: astorf
+  when: not stat_result.stat.exists
+
+- name: Copy keys
+  ansible.builtin.copy:
+    src: /etc/openvpn/easy-rsa/pki/{{ item }}
+    dest: /etc/openvpn/server/keys/{{ item | basename }}
+    mode: "0600"
+    owner: astorf
+    group: astorf
+    remote_src: true
+  loop:
+    - ca.crt
+    - dh.pem
+    - ta.key
+    - issued/homepc.crt
+    - issued/work.crt
+    - issued/jull.crt
+    - issued/book.crt
+    - issued/ipa.crt
+    - issued/server.crt
+    - private/ca.key
+    - private/homepc.key
+    - private/work.key
+    - private/jull.key
+    - private/ipa.key
+    - private/book.key
+    - private/server.key
+
+- name: Copy keys to localhost
+  ansible.builtin.fetch:
+    src: /etc/openvpn/server/keys/{{ item }}
+    dest: ~/git/keys/ 
+    mode: 0600 
+  loop:
+    - ca.crt
+    - ta.key
+    - homepc.key
+    - homepc.crt
+    - work.key
+    - work.crt
+    - jull.key
+    - jull.crt
+    - ipa.key
+    - ipa.crt
+    - book.key
+    - book.crt
+    
+- name:  Set ip forwarding
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: Disable IPv6
+  ansible.builtin.import_tasks: ipv6-disable.yml    
+
+- name: Copy ccd directory  
+  ansible.builtin.copy:
+    src: ./ccd
+    dest: "{{ openvpn_configuration_directory }}"
+    owner: astorf
+    group: astorf
+    mode: 0644
+
+- name: Place server.conf
+  ansible.builtin.template:
+    src: server.conf.j2
+    dest: "{{ openvpn_configuration_directory }}/server.conf"
+    owner: root
+    group: "{{ openvpn_group }}"
+    mode: "0640"
+  notify:
+    - Enable openvpn
+
+

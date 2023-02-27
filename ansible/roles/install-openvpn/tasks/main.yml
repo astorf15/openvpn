@@ -1,0 +1,14 @@
+---
+- name: Install openvpn packages
+  ansible.builtin.package:
+    name: "{{ openvpn_packages }}"
+    state: present
+    update_cache: true
+
+- name: Setup openvpn server or client
+  ansible.builtin.include_tasks:
+    file: "{{ openvpn_role }}.yml"
+
+# - name: Reboot
+#   ansible.builtin.reboot:    
+

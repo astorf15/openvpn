@@ -1,0 +1,12 @@
+---
+- name: Set system hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}" 
+    #register: new_hostname 
+      
+  
+- name: Replace old hostname
+  ansible.builtin.replace:
+    path: /etc/hosts
+    regexp: '\b(deb)(\d*)\b'
+    replace: '{{ inventory_hostname }}'

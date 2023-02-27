@@ -1,0 +1,21 @@
+---
+- name: Install Openvpn server
+  hosts: all
+  become: true
+  remote_user: astorf
+  roles:
+    - new-useradd
+    # - set-hostname
+    - install-openvpn
+    - configure-ssh
+  tags:
+    - install-openvpn
+
+- name: Iptables Rules
+  hosts: all
+  become: true
+  remote_user: astorf
+  roles:
+    - iptables-rules
+  tags:
+    - iptables-rules

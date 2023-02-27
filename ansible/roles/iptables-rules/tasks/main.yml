@@ -1,0 +1,110 @@
+---
+- name: Flush all
+  ansible.builtin.iptables:
+    chain: "{{ item }}"
+    flush: yes
+  with_items: ["INPUT","FORWARD", "OUTPUT"]
+
+- name: Iptables flush nat
+  ansible.builtin.iptables:
+    table: nat
+    chain: '{{ item }}'
+    flush: yes
+  with_items: [ 'INPUT', 'OUTPUT', 'PREROUTING', 'POSTROUTING' ]
+
+- name: Chains to ACCEPT
+  ansible.builtin.iptables:
+    chain: "{{ item }}"
+    policy: ACCEPT
+  with_items: ["INPUT", "FORWARD", "OUTPUT"]
+
+- name: Allow loopback
+  ansible.builtin.iptables:
+    action: append
+    chain: INPUT
+    in_interface: lo
+    jump: ACCEPT
+    # comment: Allow loopback
+  
+- name: Allow related and established connections
+  ansible.builtin.iptables:
+    chain: INPUT
+    ctstate: ESTABLISHED,RELATED
+    jump: ACCEPT
+    # comment: Allow related and established connections
+
+- name: Allow Openvpn
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: udp
+    destination_port: "1194"
+    jump: ACCEPT
+    # comment: Allow Openvpn
+
+- name: Allow SSH
+  ansible.builtin.iptables:
+    chain: INPUT
+    protocol: tcp
+    destination_port: "1504"
+    jump: ACCEPT
+    # comment: Allow SSH
+
+- name: Redirect eth0 to tun0
+  ansible.builtin.iptables:
+    chain: FORWARD
+    in_interface: eth0
+    out_interface: tun0 
+    jump: ACCEPT
+    # comment: Redirect eth0 to tun0
+
+- name: Redirect tun0 to eth0
+  ansible.builtin.iptables:
+    chain: FORWARD
+    in_interface: tun0
+    out_interface: eth0 
+    jump: ACCEPT  
+
+- name: POSTROUTING
+  ansible.builtin.iptables:
+    table: nat
+    chain: POSTROUTING
+    source: 10.2.1.0/24
+    out_interface: eth0
+    jump: MASQUERADE
+    # comment: Redirect web traffic to port 8600
+
+- name: Create iptables directory 
+  ansible.builtin.file:
+    path: /etc/iptables
+    state: directory
+    mode: 0644
+
+- name: Drop others INPUT
+  ansible.builtin.iptables:
+    chain: INPUT
+    jump: DROP
+  notify:
+      - persist iptables  
+
+- name: Drop ip6tables INPUT OUTPUT FORWARD
+  ansible.builtin.iptables:
+    chain: "{{ item }}"
+    jump: DROP
+    ip_version: ipv6
+  with_items: ["INPUT", "FORWARD", "OUTPUT"]  
+  notify:
+      - persist iptables        
+
+# PING
+# - iptables:
+#     chain: INPUT
+#     protocol: icmp
+#     jump: ACCEPT
+#     comment: Allow icmp Ping
+
+- name: Rules is set
+  debug: 
+    msg:
+      - "Rules is set"
+
+ 

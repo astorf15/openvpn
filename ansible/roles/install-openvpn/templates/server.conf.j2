@@ -1,0 +1,89 @@
+# Openvpn server config
+mode server
+daemon
+
+local 10.2.2.11
+port 1194
+dev tun0
+
+proto udp
+
+#proto tcp-server
+
+# Указываем где искать ключи
+ca /etc/openvpn/server/keys/ca.crt
+cert /etc/openvpn/server/keys/server.crt
+key /etc/openvpn/server/keys/server.key  # This file should be kept secret
+dh /etc/openvpn/server/keys/dh.pem
+#dh none
+
+# Включаем TLS
+tls-server
+remote-cert-tls client
+tls-crypt /etc/openvpn/server/keys/ta.key
+tls-timeout 120
+auth SHA256
+cipher AES-256-GCM
+
+# Задаем IP и маску виртуальной сети. Произвольно, но если не уверены лучше делайте как показано здесь
+server 10.2.1.0 255.255.255.0
+
+topology subnet
+push "topology subnet"
+
+# При успешном подключении к серверу, клиенту будет установлен новый default-gateway от vpn-сервера
+#push "redirect-gateway"
+push "redirect-gateway def1 bypass-dhcp"
+push "dhcp-option DNS 208.67.222.222"
+push "dhcp-option DNS 208.67.220.220"
+push "block-outside-dns"
+
+# Указыем, где хранятся файлы с настройками IP-адресов клиентов (создадим ниже)
+#client-config-dir ccd
+
+# Запоминать динамически выданные адреса для VPN-клиентов и при последующих подключениях назначать те же значения.
+ifconfig-pool-persist ipp.txt
+
+# Если нужно, чтобы клиенты видели друг друга раскомментируйте
+client-to-client
+
+keepalive 10 120
+
+# Сжатие трафика
+comp-lzo no
+
+# Максимум клиентов
+max-clients 5
+user nobody
+group nogroup
+
+# Не перечитывать ключи, не закрывать и переоткрывать TUN\TAP устройство, после получения SIGUSR1 или ping-restart
+persist-key
+persist-tun
+
+status /var/log/openvpn/openvpn-status.log
+log /var/log/openvpn/openvpn.log
+
+# Детальность логирования
+verb 5
+# Защита от повторов (максимум 20 одинаковых сообщений подряд)
+mute 20
+
+# чтобы клиенты могли автоматически переподключиться.
+explicit-exit-notify 1
+
+# Файл отозванных сертификатов. Разремить, когда такие сертификаты появятся.
+#crl-verify /etc/openvpn/crl.pem
+
+# Указываем сети, в которые нужно идти через туннель (сеть-клиента).
+#route 10.1.1.0 255.255.255.0
+
+# OpenVPN указывает размер буферов у сокета. Увеличение скорости тонеля
+# sndbuf 393216
+# rcvbuf 393216
+sndbuf 0
+rcvbuf 0
+push "sndbuf 0" 
+push "rcvbuf 0"
+mssfix 0
+# fragment 0

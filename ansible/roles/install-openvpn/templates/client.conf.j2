@@ -1,0 +1,47 @@
+client
+dev tun0
+proto udp
+
+# Указывает имя виртуального интерфейса
+dev-node tun0
+
+# Запуск драйвера wintun в Windows
+windows-driver wintun
+
+# Хост и порт подключения
+remote 188.72.2. 1194
+
+# Необходимо для DynDNS
+resolv-retry infinite
+
+# Использовать динамический порт для подключения (только для клиента)
+nobind
+
+# Разрешаем клиенту получать от vpn-сервера push-инструкции и применять их у себя (например, изменение таблицы роутов);
+pull
+
+# Ключи
+ca D:\\OpenVPN\\test\\keys\\ca.crt
+cert D:\\OpenVPN\\test\\keys\\homepc.crt
+key D:\\OpenVPN\\test\\keys\\homepc.key
+
+tls-client
+tls-crypt D:\\OpenVPN\\test\\keys\\ta.key
+auth SHA256
+cipher AES-256-GCM
+remote-cert-tls server
+auth-nocache
+
+# Параметр сжатия трафика, идущего через виртуальный туннель. Может принимать значения yes, no, adaptive. Последнее используется по умолчанию.
+comp-lzo no
+# Данная опция оставляет без изменения устройства tun/tap при перезапуске OpenVPN.
+persist-tun
+# Указывает не перечитавать файлы ключей при перезапуске туннеля.
+persist-key
+
+# Логи и их уровень записи
+mute 20
+verb 5
+log openvpn.log
+mssfix 0
+fragment 0
